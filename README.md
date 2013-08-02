@@ -1,4 +1,4 @@
 pianissimo
 ==========
 
-Talking to MIDI keyboards vi USB
+Talking to MIDI keyboards via USB
