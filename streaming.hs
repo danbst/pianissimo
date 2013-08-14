@@ -5,6 +5,7 @@ import Control.Exception
 import Text.PrettyPrint
 import Control.Arrow hiding ((<+>))
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Internal as BS (c2w, w2c)
 import Numeric
 import Data.Char
 import Data.List
@@ -16,10 +17,11 @@ import Control.Monad.Trans
 import Control.Monad.Trans.State
 
 isMidimanKeystation88es :: DeviceDesc -> Bool
-isMidimanKeystation88es desc = True
-{-isMidimanKeystation88es desc = deviceVendorId desc == midimanVID
-                           && deviceProductId desc == keystation88esPID -}
+isMidimanKeystation88es desc = deviceVendorId desc == midimanVID
+                           && deviceProductId desc == keystation88esPID
     where
+      --midimanVID = 0x046d
+      --keystation88esPID = 0xc018
       midimanVID = 0x0763
       keystation88esPID = 0x0192
 
@@ -56,10 +58,26 @@ deviceHandler :: Device -> IO ()
 deviceHandler device = catchUSBException go $ \e ->
        do putStr "Exception caught: " >> print e
     where go = do
-            putStrLn "opening device..."
-            handle <- openDevice device
-            putStrLn "device opened"
-            closeDevice handle
+            deviceDesc <- getDeviceDesc device
+            configDesc <- getConfigDesc device 0
+            let interface = head . toList . (!!1) . toList . configInterfaces $ configDesc
+                endPoint = (!!0) . toList . interfaceEndpoints $ interface
+            withDeviceHandle device $ \handle -> do
+                putStrLn "device opened"
+                do
+                --withDetachedKernelDriver handle 1 $ do
+                    putStrLn "attached"
+                    --setConfig handle (Just 1)
+                    putStrLn "config set"
+                    --releaseInterface handle 1
+                    do
+                    withClaimedInterface handle (interfaceNumber interface) $ do 
+                        print "interface claimed"
+                        print (endpointAddress endPoint)
+                        result <- readBulk handle (endpointAddress endPoint) 4 noTimeout
+                        --result <- writeBulk handle (endpointAddress endPoint) (BS.pack . map BS.c2w $ "") noTimeout
+                        print result
+                        return ()
             putStrLn "device closed"
     
     
